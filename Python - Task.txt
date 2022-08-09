@@ -1,0 +1,77 @@
+#Below is the complete program for downloading the file in FTP Server: 
+
+# Import Module
+import ftplib
+
+# Fill Required Information
+HOSTNAME = "138.201.56.185"
+USERNAME = "rekrut"
+PASSWORD = "zI4wG9yM5krQ3d"
+
+# Connect FTP Server
+ftp_server = ftplib.FTP(HOSTNAME, USERNAME, PASSWORD)
+
+# force UTF-8 encoding, yet this encoding is slightly not correct since task.rar is not of a UTF-8 type
+# Yet, I am simply showing how I would would automize the system.
+ftp_server.encoding = "utf-8"
+
+# Enter File Name with Extension
+filename = "task.rar"
+
+# Write file in binary mode
+with open(filename, "wb") as file: 
+#Here, we're opening the local file in "wb" mode, 
+#as we're gonna write the file from the server to the local machine.
+
+	# Command for Downloading the file "RETR filename"
+    
+	ftp_server.retrbinary(f"RETR {filename}", file.write)
+    #We're using RETR command, which downloads a copy of a file on the server, 
+    #we provide the file name we want to download as the first argument to the command, 
+    #and the server will send a copy of the file to us.
+
+# Get list of files
+ftp_server.dir()
+
+# Display the content of downloaded file, here is where the problem starts, since the encrypted code of the task.rar 
+# file is different to the one mentioned above (UTF-8), thus Python cannot read the file.
+file= open(filename, "r")
+print('File Content:', file.read())
+
+# Close the Connection
+ftp_server.quit()
+
+# Here we are done with downloading a file and normally Python would generate output here.
+
+
+
+
+#Below is the complete program for uploading the file in FTP Server: 
+
+# Import Module
+import ftplib
+
+# Fill Required Information
+HOSTNAME = "138.201.56.185"
+USERNAME = "rekrut"
+PASSWORD = "zI4wG9yM5krQ3d"
+
+# Connect FTP Server
+ftp_server = ftplib.FTP(HOSTNAME, USERNAME, PASSWORD)
+
+# force UTF-8 encoding
+ftp_server.encoding = "utf-8"
+
+# Enter File Name with Extension
+filename = "File Name" #in our case its task.rar
+
+# Read file in binary mode (rb)
+with open(filename, "rb") as file:  
+	# Command for Uploading the file "STOR filename"
+	ftp_server.storbinary(f"STOR {filename}", file)
+
+# Get list of files
+ftp_server.dir()
+
+# Close the Connection
+ftp_server.quit()
