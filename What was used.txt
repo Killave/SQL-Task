@@ -1,0 +1,167 @@
+--Project by Valentin Zavodcicov
+
+--Here I join all tables all together, 
+--yet keeping the data from [sql].[dbo].[data] as the main source of reference
+--Furthermore, once the tables are joined, I assign them to the new repository,
+--therefore it would be easier for me reference back to the chenges I made
+
+drop table if exists Data0;
+
+WITH CTE_1 AS
+  (SELECT a.part_number,
+          a.manufacturer,
+          a.main_part_number,
+          a.category,
+          a.origin,
+          b.deposit,
+          c.price,
+          d.quantity,
+          d.warehouse,
+          e.weight_unpacked,
+          e.weight_packed
+   FROM [sql].[dbo].[data] a
+   LEFT OUTER JOIN [sql].[dbo].[deposit] b ON a.part_number=b.part_number
+   LEFT OUTER JOIN [sql].[dbo].[price] c ON a.part_number=c.part_number
+   LEFT OUTER JOIN [sql].[dbo].[quantity] d ON a.part_number=d.part_number
+   LEFT OUTER JOIN [sql].[dbo].[weight] e ON a.part_number=e.part_number)
+SELECT part_number,
+       manufacturer,
+       main_part_number,
+       category,
+       origin,
+       deposit,
+       price,
+       CASE
+           WHEN isnumeric(quantity) = 1 THEN convert(int, quantity)
+           ELSE 10
+       END AS new_quantiy,
+       quantity,
+       warehouse,
+       weight_unpacked,
+       weight_packed 
+INTO Data0
+FROM CTE_1 c
+
+select * from Data0
+
+--Here I also create a new repository with new ammendements made, whence an unnecessary
+--character from “>10” is removed, so to mitigate the convertion from nvarchar to int)
+
+DROP TABLE IF EXISTS Data1;
+
+WITH CTE_2 AS
+  (SELECT part_number,
+          manufacturer,
+          main_part_number,
+          category,
+          origin,
+          price,
+          CASE
+              WHEN isnumeric(deposit) = 1 THEN convert(int, deposit)
+              ELSE 0
+          END AS new_deposit,
+          new_quantiy,
+          warehouse,
+          weight_unpacked,
+          weight_packed
+   FROM Data0)
+SELECT * INTO Data1
+FROM CTE_2 v
+
+SELECT *
+FROM Data1
+
+
+-- Here I was checking the mean for both weight_packed and weight_unpacked columns, 
+--so to sibstitute NULLS with mean value
+
+--select avg(weight_packed)
+--from Data1
+ --1.59679618060977
+
+ --select avg(weight_unpacked)
+--from Data1
+--1.47508824569103
+
+--Here the implementation of the aformentioned idea is performed
+
+DROP TABLE IF EXISTS Data2;
+
+WITH CTE_3 AS
+  (SELECT part_number,
+          manufacturer,
+          main_part_number,
+          category,
+          origin,
+          price,
+          new_quantiy,
+		  new_deposit,
+          warehouse,
+          CASE
+              WHEN weight_unpacked IS NULL THEN 1.47508824569103
+              ELSE weight_unpacked
+          END AS new_weight_unpacked,
+          CASE
+              WHEN weight_packed IS NULL THEN 1.59679618060977
+              ELSE weight_unpacked
+          END AS new_weight_packed
+   FROM Data1)
+SELECT * INTO Data2
+FROM CTE_3 m
+
+DROP TABLE IF EXISTS data3;
+
+--Here, the data filtered based upon warehouses with teh following code names:
+--A, H,J, 3, 9
+
+WITH CTE4 AS
+  (SELECT *
+   FROM Data2
+   WHERE warehouse like '%A%'
+     OR warehouse like '%H%'
+     OR warehouse like '%J%'
+     OR warehouse like 3
+     OR warehouse like 9)
+SELECT * INTO data3
+FROM CTE4
+
+
+-- Here, I am performing cuumulative progression or growth of price based upon part_number
+--In simple terms, by following fibonacci sequence, the next number is added to the previous value(s)
+--as long as these values are operated within the same part_number.
+
+SELECT *,
+       sum(price) OVER (PARTITION BY part_number
+                        ORDER BY warehouse ASC) AS Total_price_per_part_number,
+       sum(price) over (order by part_number) as Total
+FROM data3
+ORDER BY part_number DESC
+
+-------------------------------------------------------------Optional Part---------------------------------------------------------------------------
+
+--Another method could be to use lad and lead functions to achieve the same result as above, yet the data should be converted to int type,
+--so the formula above does not really work
+--select*,
+--case when replace(lag(part_number,1,0) over (order by price), ' ', '') = replace(lead(part_number,1,0) over (order by price), ' ', '')
+--then convert(int, lag(price,1,0) over (order by price)) + convert(int, lead(price,1,0) over (order by price))  
+--else part_number
+--end as new_calc
+--from data3
+--Here, the total sum is calculated.
+
+--This could hevae been achieved by switching tpart_number to integers, thus the idea here was to remove letters 
+--(that mostly were at the beginning)
+--from the syntax and convert the values to int afterwards. Either way, quantity should have been only converted to int.
+--Therefore, this part is optional and does not affect anything.
+
+--DROP TABLE IF EXISTS data4;
+--WITH CTE5 AS
+--  (SELECT *,
+--          CASE
+--              WHEN part_number like '%[A-Z]%' THEN right(replace(part_number, ' ', ''), len(part_number)-2)
+--              ELSE part_number
+--          END AS new_part_number
+--   FROM data3)
+--SELECT * INTO data4
+--FROM CTE5
+
